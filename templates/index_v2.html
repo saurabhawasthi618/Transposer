@@ -9,7 +9,11 @@
       crossorigin="anonymous"
     />
 
-  <link rel="shortcut icon" href="{{ url_for('static', filename='assets/music.svg') }}" type="image/svg+xml">
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='assets/music.svg') }}"
+      type="image/svg+xml"
+    />
 
     <style>
       body {
@@ -91,6 +95,29 @@
       .active-song {
         background-color: #d0ebff;
       }
+
+      .filter-box {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .filter-box label {
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .filter-box select {
+        padding: 5px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+
+      .song-link.hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -106,12 +133,16 @@
 
       <form method="POST">
         {% for id, song_name, content, saved_capo in songs %}
-        <div class="song-link{% if current_song_id and current_song_id|int == id %} active-song{% endif %}">
+        <div
+          class="song-link{% if current_song_id and current_song_id|int == id %} active-song{% endif %}"
+          data-capo="{{ saved_capo }}"
+        >
           <a
             href="{{ url_for('index', song_id=id) }}"
             style="color: black; text-decoration: none; padding-left: 1rem"
           >
-            {{ song_name if song_name else content[:30]|replace('\n',' ') }}{% if content|length > 30 %}...{% endif %}
+            {{ song_name if song_name else content[:30]|replace('\n',' ') }}{%
+            if content|length > 30 %}...{% endif %}
           </a>
           <button
             class="btn delete-btn"
@@ -129,53 +160,104 @@
       </form>
     </div>
 
-    <script>
-        // Highlight the active song in the sidebar
-        const currentSongId = "{{ current_song_id }}";
-        if (currentSongId) {
-            const links = document.querySelectorAll('.song-link a');
-            links.forEach(link => {
-            if (link.href.endsWith(`/${currentSongId}`)) {
-                link.parentElement.classList.add('active-song');
-            }
-            });
-        }
-    </script>
-
     <div class="main">
       <h2>Chord Transposer</h2>
 
       <form method="POST">
-        <div class="capo-box">
-          <label>
-            Name:
-            <input
-              type="text"
-              name="name"
-              value="{{ name }}"
-              placeholder="Song Name"
-            />
-          </label>
-          <label>
-            Capo Position:
-            <input
-              type="number"
-              name="capo"
-              min="0"
-              max="12"
-              value="{{ capo }}"
-            />
-          </label>
-          <button class="btn btn-success" type="submit" name="action" value="save">
-            Save
-          </button>
+        <div class="d-flex justify-content-between">
+          <div class="capo-box">
+            <label>
+              Name:
+              <input
+                type="text"
+                name="name"
+                value="{{ name }}"
+                placeholder="Song Name"
+              />
+            </label>
+            <label>
+              Capo Position:
+              <input
+                type="number"
+                name="capo"
+                min="0"
+                max="12"
+                value="{{ capo }}"
+              />
+            </label>
+            <button
+              class="btn btn-success"
+              type="submit"
+              name="action"
+              value="save"
+            >
+              Save
+            </button>
+          </div>
+
+          <!-- Capo Filter -->
+          <style>
+            select,
+            option {
+              height: 2.5rem;
+            }
+          </style>
+          <div class="w-25 d-flex align-items-center">
+            <div class="filter-box w-100">
+              <!-- <label for="capo-filter">Filter by Capo:</label> -->
+              <select id="capo-filter">
+                <option value="">All Songs</option>
+                <option value="0">Capo 0</option>
+                <option value="1">Capo 1</option>
+                <option value="2">Capo 2</option>
+                <option value="3">Capo 3</option>
+                <option value="4">Capo 4</option>
+                <option value="5">Capo 5</option>
+                <option value="6">Capo 6</option>
+                <option value="7">Capo 7</option>
+                <option value="8">Capo 8</option>
+                <option value="9">Capo 9</option>
+                <option value="10">Capo 10</option>
+                <option value="11">Capo 11</option>
+                <option value="12">Capo 12</option>
+              </select>
+            </div>
+          </div>
         </div>
 
+        <script>
+          // Filter songs by capo position
+          const capoFilter = document.getElementById("capo-filter");
+          capoFilter.addEventListener("change", function () {
+            const selectedCapo = this.value;
+            const songLinks = document.querySelectorAll(".song-link");
+
+            songLinks.forEach((link) => {
+              const capoValue = link.getAttribute("data-capo");
+              if (selectedCapo === "" || capoValue === selectedCapo) {
+                link.classList.remove("hidden");
+              } else {
+                link.classList.add("hidden");
+              }
+            });
+          });
+        </script>
+
         <div class="buttons">
-          <button class="btn btn-primary" type="submit" name="action" value="up">
+          <button
+            class="btn btn-primary"
+            type="submit"
+            name="action"
+            value="up"
+          >
             Transpose Up
           </button>
-          <button class="btn btn-primary" type="submit" name="action" value="down">
+          <button
+            class="btn btn-primary"
+            type="submit"
+            name="action"
+            value="down"
+          >
             Transpose Down
           </button>
         </div>

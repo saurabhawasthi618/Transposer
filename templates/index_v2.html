@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Chord Transposer</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+
+  <link rel="shortcut icon" href="{{ url_for('static', filename='assets/music.svg') }}" type="image/svg+xml">
+
+    <style>
+      body {
+        font-family: Arial;
+        display: flex;
+        max-width: 1400px;
+        margin: 40px auto;
+      }
+      .sidebar {
+        width: 250px;
+        border-right: 1px solid #ccc;
+        padding-right: 20px;
+      }
+      .main {
+        flex: 1;
+        padding-left: 20px;
+      }
+      textarea {
+        width: 100%;
+        height: 150rem;
+        font-family: monospace;
+        font-size: 16px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        resize: none;
+        white-space: pre-wrap;
+      }
+      .buttons {
+        margin: 20px 0;
+      }
+      .btn {
+        padding: 10px 20px;
+        font-size: 16px;
+        margin-right: 10px;
+        cursor: pointer;
+      }
+      h3 {
+        margin-bottom: 10px;
+      }
+      .capo-box {
+        margin-bottom: 20px;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      input[type="number"] {
+        width: 60px;
+        padding: 5px;
+        font-size: 16px;
+      }
+      input[name="name"] {
+        padding: 5px;
+        font-size: 16px;
+        width: 200px;
+      }
+      .song-link {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px;
+        margin-bottom: 5px;
+        border: 1px solid #ddd;
+        text-decoration: none;
+        color: black;
+      }
+      .song-link:hover {
+        background-color: #f0f0f0;
+      }
+      .delete-btn {
+        background-color: red;
+        color: white;
+        border: none;
+        padding: 2px 6px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .active-song {
+        background-color: #d0ebff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar w-25">
+      <h3>Saved Songs</h3>
+
+      <!-- New Song Button -->
+      <form method="POST" style="margin-bottom: 20px">
+        <button class="btn btn-primary" type="submit" name="action" value="new">
+          + New Song
+        </button>
+      </form>
+
+      <form method="POST">
+        {% for id, song_name, content, saved_capo in songs %}
+        <div class="song-link{% if current_song_id and current_song_id|int == id %} active-song{% endif %}">
+          <a
+            href="{{ url_for('index', song_id=id) }}"
+            style="color: black; text-decoration: none; padding-left: 1rem"
+          >
+            {{ song_name if song_name else content[:30]|replace('\n',' ') }}{% if content|length > 30 %}...{% endif %}
+          </a>
+          <button
+            class="btn delete-btn"
+            type="submit"
+            name="action"
+            value="delete_{{ id }}"
+            style="cursor: pointer"
+          >
+            X
+          </button>
+        </div>
+        {% else %}
+        <p>No saved songs</p>
+        {% endfor %}
+      </form>
+    </div>
+
+    <script>
+        // Highlight the active song in the sidebar
+        const currentSongId = "{{ current_song_id }}";
+        if (currentSongId) {
+            const links = document.querySelectorAll('.song-link a');
+            links.forEach(link => {
+            if (link.href.endsWith(`/${currentSongId}`)) {
+                link.parentElement.classList.add('active-song');
+            }
+            });
+        }
+    </script>
+
+    <div class="main">
+      <h2>Chord Transposer</h2>
+
+      <form method="POST">
+        <div class="capo-box">
+          <label>
+            Name:
+            <input
+              type="text"
+              name="name"
+              value="{{ name }}"
+              placeholder="Song Name"
+            />
+          </label>
+          <label>
+            Capo Position:
+            <input
+              type="number"
+              name="capo"
+              min="0"
+              max="12"
+              value="{{ capo }}"
+            />
+          </label>
+          <button class="btn btn-success" type="submit" name="action" value="save">
+            Save
+          </button>
+        </div>
+
+        <div class="buttons">
+          <button class="btn btn-primary" type="submit" name="action" value="up">
+            Transpose Up
+          </button>
+          <button class="btn btn-primary" type="submit" name="action" value="down">
+            Transpose Down
+          </button>
+        </div>
+
+        <input type="hidden" name="output_text" value="{{ output_text }}" />
+
+        <div>
+          <h3>Input</h3>
+          <textarea name="songtext">{{ input_text }}</textarea>
+        </div>
+      </form>
+    </div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>

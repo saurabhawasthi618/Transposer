@@ -16,30 +16,55 @@
     />
 
     <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
       body {
         font-family: Arial;
         display: flex;
         max-width: 1400px;
         margin: 40px auto;
+        height: auto;
+        min-height: 100vh;
       }
       .sidebar {
         width: 250px;
         border-right: 1px solid #ccc;
         padding-right: 20px;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+      }
+      .sidebar-header {
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #eee;
+        background: white;
+        z-index: 2;
+      }
+      .sidebar-list {
+        overflow-y: auto;
+        flex: 1 1 auto;
+        min-height: 0;
       }
       .main {
         flex: 1;
         padding-left: 20px;
+        display: flex;
+        flex-direction: column;
       }
       textarea {
         width: 100%;
-        height: 150rem;
+        min-height: 200px;
         font-family: monospace;
         font-size: 16px;
         padding: 10px;
         border: 1px solid #ccc;
         resize: none;
         white-space: pre-wrap;
+        overflow: hidden;
       }
       .buttons {
         margin: 20px 0;
@@ -122,52 +147,73 @@
   </head>
   <body>
     <div class="sidebar w-25">
-      <h3>Saved Songs</h3>
+      <div class="sidebar-header">
+        <h3>Saved Songs</h3>
 
-      <!-- New Song Button -->
-      <form method="POST" style="margin-bottom: 20px">
-        <button class="btn btn-primary" type="submit" name="action" value="new">
-          + New Song
-        </button>
-      </form>
-
-      <form method="POST">
-        {% for id, song_name, content, saved_capo in songs %}
-        <div
-          class="song-link{% if current_song_id and current_song_id|int == id %} active-song{% endif %}"
-          data-capo="{{ saved_capo }}"
-        >
-          <a
-            href="{{ url_for('index', song_id=id) }}"
-            style="color: black; text-decoration: none; padding-left: 1rem"
-          >
-            {{ song_name if song_name else content[:30]|replace('\n',' ') }}{%
-            if content|length > 30 %}...{% endif %}
-          </a>
-          <button
-            class="btn delete-btn"
-            type="submit"
-            name="action"
-            value="delete_{{ id }}"
-            style="cursor: pointer"
-          >
-            X
+        <!-- New Song Button -->
+        <form method="POST" style="margin-bottom: 1rem">
+          <button class="btn btn-primary" type="submit" name="action" value="new">
+            + New Song
           </button>
-        </div>
-        {% else %}
-        <p>No saved songs</p>
-        {% endfor %}
-      </form>
+        </form>
+
+        <!-- Search Form (GET) -->
+        <form method="GET" style="margin-bottom: 8px; display:flex; gap:8px;">
+          <input
+            type="search"
+            name="q"
+            placeholder="Search songs..."
+            value="{{ query }}"
+            class="form-control"
+            style="width: calc(100% - 80px);"
+          />
+          <button class="btn btn-outline-secondary" type="submit">Search</button>
+        </form>
+
+      </div>
+
+      <div class="sidebar-list">
+        <form method="POST">
+          {% for id, song_name, content, saved_capo, saved_key in songs %}
+          <div
+            class="song-link{% if current_song_id and current_song_id|int == id %} active-song{% endif %}"
+            data-capo="{{ saved_capo }}"
+            data-key="{{ saved_key }}"
+          >
+            <a
+              href="{{ url_for('index', song_id=id) }}"
+              style="color: black; text-decoration: none; padding-left: 1rem"
+            >
+              {{ song_name if song_name else content[:30]|replace('\n',' ') }}{%
+              if content|length > 30 %}...{% endif %}
+            </a>
+            <button
+              class="btn delete-btn"
+              type="submit"
+              name="action"
+              value="delete_{{ id }}"
+              style="cursor: pointer"
+            >
+              X
+            </button>
+          </div>
+          {% else %}
+          <p>No saved songs</p>
+          {% endfor %}
+        </form>
+      </div>
     </div>
 
     <div class="main">
-      <h2>Chord Transposer</h2>
+      <div class="d-flex justify-content-between align-items-center">
+        <h2>Chord Transposer</h2>
+      </div>
 
       <form method="POST">
         <div class="d-flex justify-content-between">
           <div class="capo-box">
             <label>
-              Name:
+              
               <input
                 type="text"
                 name="name"
@@ -176,12 +222,23 @@
               />
             </label>
             <label>
-              Capo Position:
+              
+              <input
+                type="text"
+                name="key"
+                value="{{ key }}"
+                placeholder="Key"
+                maxlength="5"
+              />
+            </label>
+            <label>
+              Capo: 
               <input
                 type="number"
                 name="capo"
                 min="0"
                 max="12"
+                placeholder="Capo"
                 value="{{ capo }}"
               />
             </label>
@@ -193,7 +250,20 @@
             >
               Save
             </button>
+            <button
+              class="btn btn-primary"
+              type="submit"
+              name="action"
+              value="edit"
+              id="edit-btn"
+              style="display: none;"
+            >
+              Update
+            </button>
           </div>
+
+          <input type="hidden" name="output_text" value="{{ output_text }}" />
+          <input type="hidden" name="song_id" id="song-id-input" value="{{ current_song_id or '' }}" />
 
           <!-- Capo Filter -->
           <style>
@@ -202,11 +272,11 @@
               height: 2.5rem;
             }
           </style>
-          <div class="w-25 d-flex align-items-center">
-            <div class="filter-box w-100">
+          <div class="w-25 d-flex align-items-center gap-3">
+            <div class="filter-box flex-grow-1 mb-0">
               <!-- <label for="capo-filter">Filter by Capo:</label> -->
               <select id="capo-filter">
-                <option value="">All Songs</option>
+                <option value="">All Capos</option>
                 <option value="0">Capo 0</option>
                 <option value="1">Capo 1</option>
                 <option value="2">Capo 2</option>
@@ -222,25 +292,138 @@
                 <option value="12">Capo 12</option>
               </select>
             </div>
+            <div class="filter-box flex-grow-1 mb-0">
+              <select id="key-filter">
+                <option value="">All Keys</option>
+                <option value="C">C</option>
+                <!-- <option value="C#">C#</option> -->
+                <option value="D">D</option>
+                <!-- <option value="D#">D#</option> -->
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <!-- <option value="F#">F#</option> -->
+                <option value="G">G</option>
+                <!-- <option value="G#">G#</option> -->
+                <option value="A">A</option>
+                <!-- <option value="A#">A#</option> -->
+                <option value="B">B</option>
+                <option value="Cm">Cm</option>
+                <!-- <option value="C#m">C#m</option> -->
+                <option value="Dm">Dm</option>
+                <!-- <option value="D#m">D#m</option> -->
+                <option value="Em">Em</option>
+                <option value="Fm">Fm</option>
+                <!-- <option value="F#m">F#m</option> -->
+                <option value="Gm">Gm</option>
+                <!-- <option value="G#m">G#m</option> -->
+                <option value="Am">Am</option>
+                <!-- <option value="A#m">A#m</option> -->
+                <option value="Bm">Bm</option>
+              </select>
+            </div>
+            <button class="btn btn-outline-secondary" id="clear-filter-btn" type="button">
+              Clear
+            </button>
           </div>
         </div>
 
         <script>
-          // Filter songs by capo position
+          // Filter songs by capo position and key
           const capoFilter = document.getElementById("capo-filter");
-          capoFilter.addEventListener("change", function () {
-            const selectedCapo = this.value;
+          const keyFilter = document.getElementById("key-filter");
+
+          // Initialize filter values from template variables (server-side)
+          function initializeFiltersFromServer() {
+            const serverCapoFilter = "{{ capo_filter }}";
+            const serverKeyFilter = "{{ key_filter }}";
+            
+            if (serverCapoFilter) {
+              capoFilter.value = serverCapoFilter;
+            }
+            if (serverKeyFilter) {
+              keyFilter.value = serverKeyFilter;
+            }
+          }
+
+          // Apply filters and update song links to include filter parameters
+          function applyFilters() {
+            const selectedCapo = capoFilter.value;
+            const selectedKey = keyFilter.value;
             const songLinks = document.querySelectorAll(".song-link");
 
+            // Update filter parameters in all song links
             songLinks.forEach((link) => {
               const capoValue = link.getAttribute("data-capo");
-              if (selectedCapo === "" || capoValue === selectedCapo) {
+              const keyValue = link.getAttribute("data-key");
+              const capoMatch = selectedCapo === "" || capoValue === selectedCapo;
+              const keyMatch = selectedKey === "" || keyValue === selectedKey;
+
+              if (capoMatch && keyMatch) {
                 link.classList.remove("hidden");
               } else {
                 link.classList.add("hidden");
               }
+
+              // Update the href to include filter parameters
+              const songLink = link.querySelector("a");
+              if (songLink) {
+                const url = new URL(songLink.href);
+                if (selectedCapo) {
+                  url.searchParams.set("capo_filter", selectedCapo);
+                } else {
+                  url.searchParams.delete("capo_filter");
+                }
+                if (selectedKey) {
+                  url.searchParams.set("key_filter", selectedKey);
+                } else {
+                  url.searchParams.delete("key_filter");
+                }
+                songLink.href = url.toString();
+              }
             });
+
+            // Update URL to reflect current filter state
+            const url = new URL(window.location);
+            if (selectedCapo) {
+              url.searchParams.set("capo_filter", selectedCapo);
+            } else {
+              url.searchParams.delete("capo_filter");
+            }
+            if (selectedKey) {
+              url.searchParams.set("key_filter", selectedKey);
+            } else {
+              url.searchParams.delete("key_filter");
+            }
+            window.history.replaceState({}, "", url.toString());
+          }
+
+          // Initialize and apply filters on page load
+          initializeFiltersFromServer();
+          applyFilters();
+
+          capoFilter.addEventListener("change", applyFilters);
+          keyFilter.addEventListener("change", applyFilters);
+
+          // Clear filters button
+          const clearFilterBtn = document.getElementById("clear-filter-btn");
+          clearFilterBtn.addEventListener("click", function() {
+            capoFilter.value = "";
+            keyFilter.value = "";
+            applyFilters();
           });
+
+          // Toggle between Save and Update buttons
+          const currentSongId = document.getElementById("song-id-input").value;
+          const saveBtn = document.querySelector('button[value="save"]');
+          const updateBtn = document.getElementById("edit-btn");
+
+          if (currentSongId) {
+            saveBtn.style.display = "none";
+            updateBtn.style.display = "inline-block";
+          } else {
+            saveBtn.style.display = "inline-block";
+            updateBtn.style.display = "none";
+          }
         </script>
 
         <div class="buttons">
@@ -262,12 +445,28 @@
           </button>
         </div>
 
-        <input type="hidden" name="output_text" value="{{ output_text }}" />
-
         <div>
           <h3>Input</h3>
           <textarea name="songtext">{{ input_text }}</textarea>
         </div>
+        <script>
+          // Auto-resize textarea to fit content
+          (function () {
+            const ta = document.querySelector('textarea[name="songtext"]');
+            function autoResize(el) {
+              el.style.height = 'auto';
+              el.style.height = el.scrollHeight + 'px';
+            }
+            if (ta) {
+              // initial resize
+              autoResize(ta);
+              // resize while typing
+              ta.addEventListener('input', () => autoResize(ta));
+              // also resize after the page loads (in case server provided content)
+              window.addEventListener('load', () => autoResize(ta));
+            }
+          })();
+        </script>
       </form>
     </div>
     <script
